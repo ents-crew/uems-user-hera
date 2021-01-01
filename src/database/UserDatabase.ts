@@ -1,15 +1,13 @@
 import { UserMessage, UserResponse } from "@uems/uemscommlib";
-import { UserValidators } from "@uems/uemscommlib/build/user/UserValidators";
 import { Collection, ObjectId } from "mongodb";
 import ReadUserMessage = UserMessage.ReadUserMessage;
 import CreateUserMessage = UserMessage.CreateUserMessage;
 import DeleteUserMessage = UserMessage.DeleteUserMessage;
 import UpdateUserMessage = UserMessage.UpdateUserMessage;
-import UserRepresentation = UserValidators.UserRepresentation;
 import InternalUser = UserResponse.InternalUser;
 import { GenericMongoDatabase } from "@uems/micro-builder";
 
-export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUserMessage, DeleteUserMessage, UpdateUserMessage, UserRepresentation> {
+export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUserMessage, DeleteUserMessage, UpdateUserMessage, InternalUser> {
 
     protected async createImpl(create: UserMessage.CreateUserMessage, details: Collection): Promise<string[]> {
         const { msg_id, msg_intention, status, ...document } = create;
@@ -30,7 +28,7 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
         return super.defaultDelete(remove);
     }
 
-    protected async queryImpl(query: UserMessage.ReadUserMessage, details: Collection): Promise<UserValidators.UserRepresentation[]> {
+    protected async queryImpl(query: UserMessage.ReadUserMessage, details: Collection): Promise<InternalUser[]> {
         const find: Record<string, unknown> = {};
 
         if (query.id) {

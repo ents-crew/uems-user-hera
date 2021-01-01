@@ -4,19 +4,17 @@ import * as z from 'zod';
 import { _ml } from './logging/Log';
 import { UserDatabase } from "./database/UserDatabase";
 import bind from "./Binding";
-import { UserValidators } from "@uems/uemscommlib/build/user/UserValidators";
-import UserMessageValidator = UserValidators.UserMessageValidator;
-import UserResponseValidator = UserValidators.UserResponseValidator;
 import { ConfigurationSchema } from "./ConfigurationTypes";
-import { RabbitNetworkHandler as GenericRabbitNetworkHandler } from "@uems/micro-builder/build/messaging/GenericRabbitNetworkHandler";
-import { UserMessage as UM, UserResponse as UR } from "@uems/uemscommlib/build/user";
+
+import {RabbitNetworkHandler} from '@uems/micro-builder';
+import { UserMessageValidator, UserResponseValidator, UserMessage as UM, UserResponse as UR } from '@uems/uemscommlib';
 
 const __ = _ml(__filename);
 const _b = _ml(`${__filename} | bind`);
 
 __.info('starting hera...');
 
-let messager: GenericRabbitNetworkHandler<any, any, any, any, any, any> | undefined;
+let messager: RabbitNetworkHandler<any, any, any, any, any, any> | undefined;
 let database: UserDatabase | undefined;
 let configuration: z.infer<typeof ConfigurationSchema> | undefined;
 
@@ -63,7 +61,7 @@ fs.readFile(path.join(__dirname, '..', 'config', 'configuration.json'), { encodi
 
         __.info('setting up the message broker');
 
-        messager = new GenericRabbitNetworkHandler<UM.UserMessage,
+        messager = new RabbitNetworkHandler<UM.UserMessage,
             UM.CreateUserMessage,
             UM.DeleteUserMessage,
             UM.ReadUserMessage,
