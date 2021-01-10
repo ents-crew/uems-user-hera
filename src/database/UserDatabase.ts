@@ -1,23 +1,49 @@
 import { UserMessage, UserResponse } from "@uems/uemscommlib";
 import { Collection, ObjectId, UpdateOneOptions, UpdateQuery } from "mongodb";
+import { GenericMongoDatabase } from "@uems/micro-builder";
 import ReadUserMessage = UserMessage.ReadUserMessage;
 import CreateUserMessage = UserMessage.CreateUserMessage;
 import DeleteUserMessage = UserMessage.DeleteUserMessage;
 import UpdateUserMessage = UserMessage.UpdateUserMessage;
 import InternalUser = UserResponse.InternalUser;
-import { GenericMongoDatabase } from "@uems/micro-builder";
+
+export type InDatabaseUser = {
+    _id: ObjectId,
+    email: string,
+    hash: string,
+    name: string,
+    uid: string,
+    username: string,
+    profile?: string,
+};
+
+export type CreateInDatabaseUser = Omit<InDatabaseUser, '_id'>;
+
+const dbToInternal = (data: InDatabaseUser, withHash: boolean, withEmail: boolean): InternalUser => ({
+    username: data.username,
+    id: data.uid,
+    name: data.name,
+    profile: data.profile,
+    email: withEmail ? data.email : undefined,
+    hash: withHash ? data.hash : undefined,
+});
+
+const createToDb = (data: CreateUserMessage): CreateInDatabaseUser => ({
+    name: data.name,
+    email: data.email,
+    hash: data.hash,
+    uid: data.id,
+    username: data.username,
+    profile: data.profile,
+});
 
 export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUserMessage, DeleteUserMessage, UpdateUserMessage, InternalUser> {
 
     protected async createImpl(create: UserMessage.CreateUserMessage, details: Collection): Promise<string[]> {
         const { msg_id, msg_intention, status, ...document } = create;
 
-        // @ts-ignore - TODO: do this properly later
-        document.uid = document.id;
-        // @ts-ignore
-        delete document.id;
-
-        const result = await details.insertOne(document);
+        const targetDocument = createToDb(create);
+        const result = await details.insertOne(targetDocument);
 
         if (result.insertedCount !== 1 || result.insertedId === undefined) {
             throw new Error('failed to insert')
@@ -72,30 +98,16 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
             find.email = query.email;
         }
 
-        const result: InternalUser[] = await details.find(find).toArray();
-
-        for (const r of result) {
-            // @ts-ignore
-            r.id = r.uid;
-
-            // @ts-ignore
-            delete r._id;
-            // @ts-ignore
-            delete r.uid;
-
-            if (!query.includeEmail) r.email = undefined;
-            if (!query.includeHash) r.hash = undefined;
-        }
-
-        return result;
+        return (await details.find(find).toArray())
+            .map((d) => dbToInternal(d, query.includeHash ?? false, query.includeEmail ?? false));
     }
 
     protected updateImpl(update: UserMessage.UpdateUserMessage): Promise<string[]> {
         return super.defaultUpdate(update)
     }
 
-    public async assert(assert: UserMessage.AssertUserMessage): Promise<void>{
-        if (!this._details){
+    public async assert(assert: UserMessage.AssertUserMessage): Promise<void> {
+        if (!this._details) {
             throw new Error('database not initialised before assert');
         }
 
