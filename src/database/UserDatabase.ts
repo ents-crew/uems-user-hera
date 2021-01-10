@@ -76,10 +76,12 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
 
         for (const r of result) {
             // @ts-ignore
-            r.id = r._id.toString();
+            r.id = r.uid;
 
             // @ts-ignore
             delete r._id;
+            // @ts-ignore
+            delete r.uid;
 
             if (!query.includeEmail) r.email = undefined;
             if (!query.includeHash) r.hash = undefined;
