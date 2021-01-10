@@ -12,6 +12,11 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
     protected async createImpl(create: UserMessage.CreateUserMessage, details: Collection): Promise<string[]> {
         const { msg_id, msg_intention, status, ...document } = create;
 
+        // @ts-ignore - TODO: do this properly later
+        document.uid = document.id;
+        // @ts-ignore
+        delete document.id;
+
         const result = await details.insertOne(document);
 
         if (result.insertedCount !== 1 || result.insertedId === undefined) {
@@ -21,19 +26,34 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
         const id = (result.insertedId as ObjectId).toHexString();
         await super.log(id, 'inserted');
 
-        return [id];
+        // @ts-ignore
+        return [document.uid];
     }
 
-    protected deleteImpl(remove: UserMessage.DeleteUserMessage): Promise<string[]> {
-        return super.defaultDelete(remove);
+    protected async deleteImpl(remove: UserMessage.DeleteUserMessage, details: Collection): Promise<string[]> {
+        const { id } = remove;
+
+        const query = {
+            uid: id,
+        };
+
+        const result = await details
+            .deleteOne(query);
+
+        if (result.result.ok !== 1 || result.deletedCount !== 1) {
+            throw new Error('failed to delete');
+        }
+
+        await this.log(id, 'deleted');
+
+        return [id];
     }
 
     protected async queryImpl(query: UserMessage.ReadUserMessage, details: Collection): Promise<InternalUser[]> {
         const find: Record<string, unknown> = {};
 
         if (query.id) {
-            if (!ObjectId.isValid(query.id)) throw new Error('invalid query id');
-            find._id = new ObjectId(query.id);
+            find.uid = query.id;
         }
 
         if (query.name) {
