@@ -77,4 +77,12 @@ export default function bind(database: UserDatabase, broker: RabbitNetworkHandle
 
     broker.on('create', (message, send) => execute(message, database, send));
     _b.debug('bound [create] event');
+
+    broker.on('any', (message, send) => {
+        if (message.msg_intention === 'ASSERT'){
+            return database.assert(message);
+        }
+
+        return Promise.resolve();
+    })
 }

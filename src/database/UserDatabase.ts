@@ -1,5 +1,5 @@
 import { UserMessage, UserResponse } from "@uems/uemscommlib";
-import { Collection, ObjectId } from "mongodb";
+import { Collection, ObjectId, UpdateOneOptions, UpdateQuery } from "mongodb";
 import ReadUserMessage = UserMessage.ReadUserMessage;
 import CreateUserMessage = UserMessage.CreateUserMessage;
 import DeleteUserMessage = UserMessage.DeleteUserMessage;
@@ -92,6 +92,32 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
 
     protected updateImpl(update: UserMessage.UpdateUserMessage): Promise<string[]> {
         return super.defaultUpdate(update)
+    }
+
+    public async assert(assert: UserMessage.AssertUserMessage): Promise<void>{
+        if (!this._details){
+            throw new Error('database not initialised before assert');
+        }
+
+        const upsert: UpdateQuery<InternalUser> = {
+            $set: {
+                email: assert.email,
+                name: assert.name,
+                uid: assert.id,
+                username: assert.username,
+            },
+            $setOnInsert: {
+                hash: '',
+            }
+        }
+
+        const options: UpdateOneOptions = {
+            upsert: true,
+        }
+
+        await this._details.updateOne({
+            uid: assert.id,
+        }, upsert, options)
     }
 
 }
