@@ -55,7 +55,7 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
         await super.log(id, 'inserted');
 
         // @ts-ignore
-        return [document.uid];
+        return [targetDocument.uid];
     }
 
     protected async deleteImpl(remove: UserMessage.DeleteUserMessage, details: Collection): Promise<string[]> {

@@ -62,6 +62,7 @@ describe('executing create messages create the proper entities', () => {
 
         // Check the result is valid
         await expect(id).toHaveLength(1);
+        await expect(id[0]).toEqual('id');
 
         // Then check that the database query returns the same data
         const results = await database.query({
@@ -107,6 +108,7 @@ describe('executing create messages create the proper entities', () => {
 
         // Check the result is valid
         await expect(id).toHaveLength(1);
+        await expect(id[0]).toEqual('id');
 
         // Then check that the database query returns the same data
         const results = await database.query({
