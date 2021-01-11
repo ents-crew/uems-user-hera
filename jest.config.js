@@ -4,5 +4,9 @@ module.exports = {
   testPathIgnorePatterns: [
       '/node_modules/',
       '/build/'
-  ]
+  ],
+    coveragePathIgnorePatterns: [
+        '/node_modules/',
+        '/src/logging/Log.ts'
+    ]
 };
