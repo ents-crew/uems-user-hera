@@ -88,6 +88,7 @@ const logger = winston.createLogger({
             // @ts-ignore
             format: prettyFormat,
             level: 'warn',
+            stderrLevels: ['warn', 'error'],
         }),
     ],
     handleExceptions: false,
