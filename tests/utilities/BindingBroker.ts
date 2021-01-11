@@ -56,6 +56,14 @@ export class BindingBroker implements MockBrokerInterface {
         }
     }
 
+    clear(){
+        this._listeners.query = [];
+        this._listeners.delete = [];
+        this._listeners.update = [];
+        this._listeners.create = [];
+        this._listeners.any = [];
+    }
+
 }
 
 export const makeBindingBroker = () => new BindingBroker() as unknown as RabbitNetworkHandler<any, any, any, any, any, any>;
