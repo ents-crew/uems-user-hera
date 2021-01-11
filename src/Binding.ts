@@ -33,22 +33,23 @@ async function execute(
         switch (message.msg_intention) {
             case 'CREATE':
                 result = await database.create(message);
-                status = constants.HTTP_STATUS_OK;
+                status = MsgStatus.SUCCESS;
                 break;
             case 'DELETE':
                 result = await database.delete(message);
-                status = constants.HTTP_STATUS_OK;
+                status = MsgStatus.SUCCESS;
                 break;
             case 'READ':
                 result = await database.query(message);
-                status = constants.HTTP_STATUS_OK;
+                status = MsgStatus.SUCCESS;
                 break;
             case 'UPDATE':
                 result = await database.update(message);
-                status = constants.HTTP_STATUS_OK;
+                status = MsgStatus.SUCCESS;
                 break;
             default:
-                status = constants.HTTP_STATUS_BAD_REQUEST;
+                status = MsgStatus.FAIL;
+                result = ['invalid message intention'];
         }
     } catch (e) {
         _b.error('failed to query database for events', {
