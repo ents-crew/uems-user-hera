@@ -9,6 +9,7 @@ import { RabbitNetworkHandler } from '@uems/micro-builder';
 import { UserMessage as UM, UserMessageValidator, UserResponse as UR, UserResponseValidator } from '@uems/uemscommlib';
 import CONSTANTS from "./constants/Constants";
 import { LoggedError } from "./error/LoggedError";
+import { MongoClient } from "mongodb";
 
 const CONFIG_FILE_LOCATION = process.env.UEMS_HERA_CONFIG_LOCATION ?? path.join(__dirname, '..', 'config', 'configuration.json');
 
@@ -52,13 +53,22 @@ async function launch() {
     }
     let config = parsed.data;
 
-    let database: UserDatabase;
+    let database!: UserDatabase;
 
     try {
         __.info('setting up database connection');
-        database = new UserDatabase(config.database);
+        await new Promise<void>(async (resolve, reject) => {
+            if (process.env.UEMS_RAW_MONGO_URI) {
+                __.info('using raw uri');
+                const client = new MongoClient(process.env.UEMS_RAW_MONGO_URI, {
+                    useUnifiedTopology: true,
+                });
+                await client.connect();
+                database = new UserDatabase(client.db(), config.database.collections);
+            } else {
+                database = new UserDatabase(config.database);
+            }
 
-        await new Promise<void>((resolve, reject) => {
             const readyUnbind = database.once('ready', () => {
                 readyUnbind();
                 resolve();
