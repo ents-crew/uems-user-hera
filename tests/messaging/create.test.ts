@@ -120,7 +120,11 @@ describe('executing create messages create the proper entities', () => {
         await expect(results).toHaveLength(1);
 
         // Check that the response has these keys and these keys only
-        await expect(Object.keys(results[0]).sort()).toEqual(['hash', 'email', 'username', 'name', 'id', 'profile'].sort());
+
+        const allowed = ['hash', 'email', 'username', 'name', 'id', 'profile'];
+        for (const key of Object.keys(results[0])) {
+            expect(allowed).toContain(key);
+        }
     });
 
 })
