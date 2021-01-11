@@ -84,6 +84,11 @@ const logger = winston.createLogger({
                 level: 'silly',
             }),
         ]),
+        new winston.transports.Console({
+            // @ts-ignore
+            format: prettyFormat,
+            level: 'warn',
+        }),
     ],
     handleExceptions: false,
 });
