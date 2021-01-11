@@ -99,10 +99,19 @@ export default function bind(database: UserDatabase, broker: RabbitNetworkHandle
     _b.debug('bound [create] event');
 
     broker.on('any', (message, send) => {
+        // These messages are automatically handled by the handlers shown above
+        if (['READ', 'DELETE', 'UPDATE', 'CREATE'].includes(message.msg_intention)) return undefined;
+
         if (message.msg_intention === 'ASSERT') {
             return database.assert(message);
         }
 
-        return Promise.resolve();
+        return send({
+            msg_intention: message.msg_intention,
+            msg_id: message.msg_id,
+            userID: message.userID,
+            status: MsgStatus.FAIL,
+            result: ['invalid message intention'],
+        });
     })
 }
