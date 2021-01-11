@@ -45,25 +45,25 @@ describe('executing delete messages delete the proper entities', () => {
         await db.collection('details').insertMany([
             {
                 _id: new ObjectId("56d9bf92f9be48771d6fe5b1"),
-                email: "email",
+                email: "email one",
                 hash: "hash",
                 name: "name",
                 uid: "uid1",
-                username: "username",
+                username: "username one",
             }, {
                 _id: new ObjectId("56d9bf92f9be48771d6fe5b2"),
-                email: "email",
+                email: "email two",
                 hash: "hash",
                 name: "name",
                 uid: "uid2",
-                username: "username",
+                username: "username two",
             }, {
                 _id: new ObjectId("56d9bf92f9be48771d6fe5b3"),
-                email: "email",
+                email: "email three",
                 hash: "hash",
                 name: "name",
                 uid: "uid3",
-                username: "username",
+                username: "username three",
             }
         ]);
     });
@@ -138,8 +138,8 @@ describe('executing delete messages delete the proper entities', () => {
 
         // Check that the data matches
         await expect(results[0].hash).toEqual('hash');
-        await expect(results[0].email).toEqual('email');
-        await expect(results[0].username).toEqual('username');
+        await expect(results[0].email).toEqual('email one');
+        await expect(results[0].username).toEqual('username one');
         await expect(results[0].name).toEqual('name');
     })
 

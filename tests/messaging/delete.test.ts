@@ -45,25 +45,25 @@ describe('executing delete messages delete the proper entities', () => {
         await db.collection('details').insertMany([
             {
                 _id: new ObjectId("56d9bf92f9be48771d6fe5b1"),
-                email: "a@b.com",
+                email: "one@b.com",
                 hash: "",
                 name: "name",
                 uid: "uid1",
-                username: "user",
+                username: "user one",
             }, {
                 _id: new ObjectId("56d9bf92f9be48771d6fe5b2"),
-                email: "a@b.com",
+                email: "two@b.com",
                 hash: "",
                 name: "name",
                 uid: "uid2",
-                username: "user",
+                username: "user two",
             }, {
                 _id: new ObjectId("56d9bf92f9be48771d6fe5b3"),
-                email: "a@b.com",
+                email: "three@b.com",
                 hash: "",
                 name: "name",
                 uid: "uid3",
-                username: "user",
+                username: "user three",
             }
         ]);
     });
