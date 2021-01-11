@@ -165,13 +165,13 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
         }
 
         if (Object.keys(changes.$set ?? {}).length === 0) {
-            throw new Error('no operations provided');
+            throw new ClientFacingError('no operations provided');
         }
 
         const result = await details.updateOne(filter, changes);
 
         if (result.matchedCount === 0) {
-            throw new Error('invalid user ID');
+            throw new ClientFacingError('invalid user ID');
         }
 
         if (result.result.ok !== 1) {
