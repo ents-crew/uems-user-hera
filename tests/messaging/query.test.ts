@@ -51,6 +51,8 @@ describe('executing query messages query the proper entities', () => {
 
         // Then create a user database around this
         db = client.db('testing');
+        await db.collection('details').createIndex({ name: 'text', username: 'text' });
+
         database = new UserDatabase(db, {
             details: 'details',
             changelog: 'changelog',
@@ -143,7 +145,7 @@ describe('executing query messages query the proper entities', () => {
         });
 
         await expect(results).toHaveLength(3);
-        await expect(results).toEqual( [
+        await expect(results).toEqual([
             {
                 name: "name one",
                 id: "uid one",
@@ -159,6 +161,72 @@ describe('executing query messages query the proper entities', () => {
             }
         ]);
     });
+
+    it('can query by email', async () => {
+        const results = await database.query({
+            msg_intention: "READ",
+            userID: 'anonymous',
+            status: 0,
+            msg_id: 0,
+            email: 'email one',
+        });
+
+        await expect(results).toHaveLength(1);
+        await expect(results[0].username).toEqual('username one');
+        await expect(results[0].name).toEqual('name one');
+    })
+
+    it('can query by substring of name', async () => {
+        const results = await database.query({
+            msg_intention: "READ",
+            userID: 'anonymous',
+            status: 0,
+            msg_id: 0,
+            name: 'one',
+        });
+
+        await expect(results).toHaveLength(1);
+        await expect(results[0].username).toEqual('username one');
+        await expect(results[0].name).toEqual('name one');
+    })
+
+    it('can query by substring of username', async () => {
+        const results = await database.query({
+            msg_intention: "READ",
+            userID: 'anonymous',
+            status: 0,
+            msg_id: 0,
+            username: 'two',
+        });
+
+        await expect(results).toHaveLength(1);
+        await expect(results[0].username).toEqual('username two');
+        await expect(results[0].name).toEqual('name two');
+    })
+
+    it('can combine substring query of name and username', async () => {
+        const results = await database.query({
+            msg_intention: "READ",
+            userID: 'anonymous',
+            status: 0,
+            msg_id: 0,
+            name: 'two',
+            username: 'one',
+        });
+
+        await expect(results).toHaveLength(2);
+        await expect(results).toEqual([
+            {
+                name: "name one",
+                id: "uid one",
+                username: "username one",
+            }, {
+                name: "name two",
+                id: "uid two",
+                username: "username two",
+            }
+        ]);
+    })
 
     it('queries only return internal user properties', async () => {
         const results = await database.query({
