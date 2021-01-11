@@ -1,108 +1,129 @@
 import fs from 'fs/promises';
 import path from 'path';
-import * as z from 'zod';
 import { _ml } from './logging/Log';
 import { UserDatabase } from "./database/UserDatabase";
 import bind from "./Binding";
 import { ConfigurationSchema } from "./ConfigurationTypes";
 
-import {RabbitNetworkHandler} from '@uems/micro-builder';
-import { UserMessageValidator, UserResponseValidator, UserMessage as UM, UserResponse as UR } from '@uems/uemscommlib';
+import { RabbitNetworkHandler } from '@uems/micro-builder';
+import { UserMessage as UM, UserMessageValidator, UserResponse as UR, UserResponseValidator } from '@uems/uemscommlib';
+import CONSTANTS from "./constants/Constants";
+import { LoggedError } from "./error/LoggedError";
+
+const CONFIG_FILE_LOCATION = process.env.UEMS_HERA_CONFIG_LOCATION ?? path.join(__dirname, '..', 'config', 'configuration.json');
 
 const __ = _ml(__filename);
-const _b = _ml(`${__filename} | bind`);
 
 __.info('starting hera...');
 
-let messager: RabbitNetworkHandler<any, any, any, any, any, any> | undefined;
-let database: UserDatabase | undefined;
-let configuration: z.infer<typeof ConfigurationSchema> | undefined;
+async function launch() {
+    let configData;
 
-fs.readFile(path.join(__dirname, '..', 'config', 'configuration.json'), { encoding: 'utf8' })
-    .then((file) => {
+    try {
+        configData = await fs.readFile(CONFIG_FILE_LOCATION, { encoding: 'utf8' });
         __.debug('loaded configuration file');
-
-        configuration = ConfigurationSchema.parse(JSON.parse(file));
-    })
-    .then(() => (new Promise<UserDatabase>((resolve, reject) => {
-        if (!configuration) {
-            __.error('reached an uninitialised configuration, this should not be possible');
-            reject(new Error('uninitialised configuration'));
-            return;
+    } catch (e) {
+        if (e.code === 'ENOENT') {
+            __.error('failed to launch: ' + CONSTANTS.messages.NO_CONFIG_FILE);
+            process.exitCode = CONSTANTS.codes.NO_CONFIG_FILE;
+            throw new LoggedError();
         }
 
+        throw e;
+    }
+
+    let configJSON;
+
+    try {
+        configJSON = JSON.parse(configData);
+    } catch (e) {
+        __.error('failed to launch: ' + CONSTANTS.messages.INVALID_CONFIG_FILE + ' (invalid JSON)', { e });
+        process.exitCode = CONSTANTS.codes.INVALID_CONFIG_FILE;
+        throw new LoggedError();
+    }
+
+    const parsed = ConfigurationSchema.safeParse(configJSON);
+    if (!parsed.success) {
+        __.error('failed to launch: ' + CONSTANTS.messages.INVALID_CONFIG_FILE + ' (invalid content)', {
+            warnings: parsed.error,
+        });
+        process.exitCode = CONSTANTS.codes.INVALID_CONFIG_FILE;
+        throw new LoggedError();
+    }
+    let config = parsed.data;
+
+    let database: UserDatabase;
+
+    try {
         __.info('setting up database connection');
+        database = new UserDatabase(config.database);
 
-        database = new UserDatabase(configuration.database);
-
-        const unbind = database.once('error', (err) => {
-            __.error('failed to setup the database connection', {
-                error: err,
+        await new Promise<void>((resolve, reject) => {
+            const readyUnbind = database.once('ready', () => {
+                readyUnbind();
+                resolve();
             });
 
-            reject(err);
+            const errorUnbind = database.once('error', (e) => {
+                errorUnbind();
+                reject(e);
+            });
         });
 
-        database.once('ready', () => {
-            __.info('database connection enabled');
-            // Make sure we dont later try and reject a resolved promise from an unrelated error
-            unbind();
+        __.info('database connection enabled');
+    } catch (e) {
+        __.error('failed to launch: ' + CONSTANTS.messages.COULD_NOT_CONNECT_TO_DB, { e });
+        process.exitCode = CONSTANTS.codes.COULD_NOT_CONNECT_TO_DB;
+        throw new LoggedError();
+    }
 
-            if (database) resolve(database);
-            else reject(new Error('database is invalid'));
-        });
-    })))
-    .then(() => (new Promise<void>((resolve, reject) => {
-        if (!configuration) {
-            __.error('reached an uninitialised configuration, this should not be possible');
-            reject(new Error('uninitialised configuration'));
-            return;
-        }
+    let messenger: RabbitNetworkHandler<UM.UserMessage,
+        UM.CreateUserMessage,
+        UM.DeleteUserMessage,
+        UM.ReadUserMessage,
+        UM.UpdateUserMessage,
+        UR.UserReadResponseMessage | UR.UserResponseMessage>;
 
-        __.info('setting up the message broker');
-
-        messager = new RabbitNetworkHandler<UM.UserMessage,
+    try {
+        messenger = new RabbitNetworkHandler<UM.UserMessage,
             UM.CreateUserMessage,
             UM.DeleteUserMessage,
             UM.ReadUserMessage,
             UM.UpdateUserMessage,
             UR.UserReadResponseMessage | UR.UserResponseMessage>
         (
-            configuration.message,
+            config.message,
             (data) => new UserMessageValidator().validate(data),
             (data) => new UserResponseValidator().validate(data),
         );
 
-        const unbind = messager.once('error', (err) => {
-            __.error('failed to setup the message broker', {
-                error: err,
+        await new Promise<void>((resolve, reject) => {
+            const unbindError = messenger.once('error', (err) => {
+                unbindError();
+                reject(err);
             });
 
-            reject(err);
+            const unbindReady = messenger.once('ready', () => {
+                unbindReady();
+                resolve();
+            });
         });
 
-        messager.once('ready', () => {
-            __.info('message broker enabled');
-            // Make sure we dont later try and reject a resolved promise from an unrelated error
-            unbind();
-            resolve();
-        });
-    })))
-    .then(() => {
-        if (!messager || !database) {
-            __.error('reached an uninitialised database or messenger, this should not be possible');
-            throw new Error('uninitialised database or messenger');
-        }
+        __.info('message broker enabled');
+    } catch (e) {
+        __.error('failed to launch: ' + CONSTANTS.messages.COULD_NOT_CONNECT_TO_AMQPLIB, { e });
+        process.exitCode = CONSTANTS.codes.COULD_NOT_CONNECT_TO_AMQPLIB;
+        throw new LoggedError();
+    }
 
-        __.info('binding database to messenger');
+    __.info('binding database to messenger');
+    bind(database, messenger);
 
-        bind(database, messager);
+    __.info('hera up and running');
+}
 
-        // We're ready to start!
-        __.info('hera up and running');
-    })
-    .catch((err) => {
-        __.error('failed to launch', {
-            error: err as unknown,
-        });
-    });
+launch().catch((e) => {
+    if (!(e instanceof LoggedError)) {
+        __.error('failed to launch: an unknown error was encountered', { e });
+    }
+})
