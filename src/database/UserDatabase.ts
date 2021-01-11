@@ -1,5 +1,5 @@
 import { UserMessage, UserResponse } from "@uems/uemscommlib";
-import { Collection, ObjectId, UpdateOneOptions, UpdateQuery } from "mongodb";
+import { Collection, FilterQuery, ObjectId, UpdateOneOptions, UpdateQuery } from "mongodb";
 import { GenericMongoDatabase } from "@uems/micro-builder";
 import ReadUserMessage = UserMessage.ReadUserMessage;
 import CreateUserMessage = UserMessage.CreateUserMessage;
@@ -107,8 +107,36 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
             .map((d) => dbToInternal(d, query.includeHash ?? false, query.includeEmail ?? false));
     }
 
-    protected updateImpl(update: UserMessage.UpdateUserMessage): Promise<string[]> {
-        return super.defaultUpdate(update)
+    protected async updateImpl(update: UserMessage.UpdateUserMessage, details: Collection): Promise<string[]> {
+        const filter: FilterQuery<InDatabaseUser> = {
+            uid: update.id,
+        };
+
+        const changes: UpdateQuery<InDatabaseUser> = {
+            $set: {
+                ...(update.profile ? { profile: update.profile } : {}),
+                ...(update.username ? { username: update.username } : {}),
+                ...(update.hash ? { hash: update.hash } : {}),
+                ...(update.email ? { email: update.email } : {}),
+                ...(update.name ? { name: update.name } : {}),
+            }
+        }
+
+        if (Object.keys(changes.$set ?? {}).length === 0) {
+            throw new Error('no operations provided');
+        }
+
+        const result = await details.updateOne(filter, changes);
+
+        if (result.matchedCount === 0) {
+            throw new Error('invalid user ID');
+        }
+
+        if (result.result.ok !== 1) {
+            throw new Error('failed to delete');
+        }
+
+        return [update.id];
     }
 
     public async assert(assert: UserMessage.AssertUserMessage): Promise<void> {
