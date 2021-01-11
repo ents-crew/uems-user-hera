@@ -1,11 +1,13 @@
 import { UserMessage, UserResponse } from "@uems/uemscommlib";
-import { Collection, FilterQuery, ObjectId, UpdateOneOptions, UpdateQuery } from "mongodb";
-import { GenericMongoDatabase } from "@uems/micro-builder";
+import { Collection, Db, FilterQuery, ObjectId, UpdateOneOptions, UpdateQuery } from "mongodb";
+import { GenericMongoDatabase, MongoDBConfiguration } from "@uems/micro-builder";
 import ReadUserMessage = UserMessage.ReadUserMessage;
 import CreateUserMessage = UserMessage.CreateUserMessage;
 import DeleteUserMessage = UserMessage.DeleteUserMessage;
 import UpdateUserMessage = UserMessage.UpdateUserMessage;
 import InternalUser = UserResponse.InternalUser;
+import { union } from "zod";
+import { ClientFacingError } from "../error/ClientFacingError";
 
 export type InDatabaseUser = {
     _id: ObjectId,
