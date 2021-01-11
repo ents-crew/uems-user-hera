@@ -41,11 +41,46 @@ const createToDb = (data: CreateUserMessage): CreateInDatabaseUser => stripUndef
 
 export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUserMessage, DeleteUserMessage, UpdateUserMessage, InternalUser> {
 
+    constructor(configurationOrDB: MongoDBConfiguration | Db, collections: MongoDBConfiguration["collections"]) {
+        super(configurationOrDB, collections);
+
+        if (!this._details) throw new Error('Database initialisation failed?');
+        // TODO: find a way to make this actually wait?
+        void this._details.createIndexes([
+            { key: { username: 1 }, name: 'unique-username', unique: true },
+            { key: { email: 1 }, name: 'unique-email', unique: true },
+            { key: { uid: 1 }, name: 'unique-uid', unique: true },
+        ]);
+    }
+
     protected async createImpl(create: UserMessage.CreateUserMessage, details: Collection): Promise<string[]> {
         const { msg_id, msg_intention, status, ...document } = create;
 
         const targetDocument = createToDb(create);
-        const result = await details.insertOne(targetDocument);
+        let result;
+
+        try {
+            result = await details.insertOne(targetDocument);
+        } catch (e) {
+            if (e.code === 11000) {
+                // TODO : there should be a better way to do this but I'm currently running into issues with mongodb not
+                //   returning the index that is being violated. When running tests locally it returns the following
+                //   error: MongoError: E11000 duplicate key error dup key: { : "duplicated username" }
+                //   but as this doesn't contain the index name I can't tell which value is violating it. So I'm going
+                //   to cheat and first check if it will return the index value to handle how the system it meant to
+                //   work (which was apparently fixed?). If that doesn't match anything, I'm going to compare the query
+                //   value. This will fail if values are the same (such as username === uid) but that would probably
+                //   happen with mongodb anyway. I'm going to do it in the order of the indexes being created but I
+                //   don't know how mongodb orders its indexes
+                if (e.message.includes('unique-username')) throw new ClientFacingError('username already claimed');
+                if (e.message.includes('unique-email')) throw new ClientFacingError('email already claimed');
+                if (e.message.includes('unique-uid')) throw new ClientFacingError('user ID already claimed');
+                if (e.message.includes(`"${create.username}"`)) throw new ClientFacingError('username already claimed');
+                if (e.message.includes(`"${create.email}"`)) throw new ClientFacingError('email already claimed');
+                if (e.message.includes(`"${create.id}"`)) throw new ClientFacingError('user ID already claimed');
+            }
+            throw e;
+        }
 
         if (result.insertedCount !== 1 || result.insertedId === undefined) {
             throw new Error('failed to insert')
