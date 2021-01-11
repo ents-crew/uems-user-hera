@@ -19,7 +19,9 @@ export type InDatabaseUser = {
 
 export type CreateInDatabaseUser = Omit<InDatabaseUser, '_id'>;
 
-const dbToInternal = (data: InDatabaseUser, withHash: boolean, withEmail: boolean): InternalUser => ({
+const stripUndefined = <T>(data: T): T => Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined)) as unknown as T;
+
+const dbToInternal = (data: InDatabaseUser, withHash: boolean, withEmail: boolean): InternalUser => stripUndefined({
     username: data.username,
     id: data.uid,
     name: data.name,
@@ -28,7 +30,7 @@ const dbToInternal = (data: InDatabaseUser, withHash: boolean, withEmail: boolea
     hash: withHash ? data.hash : undefined,
 });
 
-const createToDb = (data: CreateUserMessage): CreateInDatabaseUser => ({
+const createToDb = (data: CreateUserMessage): CreateInDatabaseUser => stripUndefined({
     name: data.name,
     email: data.email,
     hash: data.hash,
