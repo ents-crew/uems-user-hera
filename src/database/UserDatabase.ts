@@ -100,7 +100,7 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
 
     protected async deleteImpl(remove: UserMessage.DeleteUserMessage, details: Collection): Promise<string[]> {
         const { id } = remove;
-        if (typeof (id) !== 'string') throw new Error('invalid ID type');
+        if (typeof (id) !== 'string') throw new ClientFacingError('invalid ID type');
 
         const query = {
             uid: id,
@@ -110,7 +110,7 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
             .deleteOne(query);
 
         if (result.deletedCount !== 1) {
-            throw new Error('invalid user ID');
+            throw new ClientFacingError('invalid user ID');
         }
 
         if (result.result.ok !== 1) {
