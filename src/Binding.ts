@@ -1,8 +1,9 @@
 import { constants } from "http2";
 import { UserDatabase } from "./database/UserDatabase";
-import { UserMessage, UserResponse } from "@uems/uemscommlib";
+import { MsgStatus, UserMessage, UserResponse } from "@uems/uemscommlib";
 import { _ml } from "./logging/Log";
 import { RabbitNetworkHandler } from "@uems/micro-builder";
+import { ClientFacingError } from "./error/ClientFacingError";
 
 const _b = _ml(__filename, 'binding');
 
@@ -13,7 +14,16 @@ async function execute(
 ) {
     if (!database) {
         _b.warn('query was received without a valid database connection');
-        throw new Error('uninitialised database connection');
+
+        send({
+            msg_intention: message.msg_intention,
+            msg_id: message.msg_id,
+            userID: message.userID,
+            status: MsgStatus.FAIL,
+            result: ['service is not ready'],
+        });
+
+        return;
     }
 
     let status: number = constants.HTTP_STATUS_INTERNAL_SERVER_ERROR;
@@ -44,6 +54,15 @@ async function execute(
         _b.error('failed to query database for events', {
             error: e as unknown,
         });
+
+        send({
+            msg_intention: message.msg_intention,
+            msg_id: message.msg_id,
+            userID: message.userID,
+            status: MsgStatus.FAIL,
+            result: [e instanceof ClientFacingError ? e.message : 'failed to create user due to an internal service error'],
+        });
+        return;
     }
 
     if (message.msg_intention === 'READ') {
@@ -79,7 +98,7 @@ export default function bind(database: UserDatabase, broker: RabbitNetworkHandle
     _b.debug('bound [create] event');
 
     broker.on('any', (message, send) => {
-        if (message.msg_intention === 'ASSERT'){
+        if (message.msg_intention === 'ASSERT') {
             return database.assert(message);
         }
 
