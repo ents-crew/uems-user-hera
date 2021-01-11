@@ -43,7 +43,10 @@ const createToDb = (data: CreateUserMessage): CreateInDatabaseUser => stripUndef
 
 export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUserMessage, DeleteUserMessage, UpdateUserMessage, InternalUser> {
 
-    constructor(configurationOrDB: MongoDBConfiguration | Db, collections: MongoDBConfiguration["collections"]) {
+    public constructor(_configuration: MongoDBConfiguration);
+    public constructor(database: Db, collections: MongoDBConfiguration['collections']);
+    public constructor(_configurationOrDB: MongoDBConfiguration | Db, collections?: MongoDBConfiguration['collections']);
+    constructor(configurationOrDB: MongoDBConfiguration | Db, collections?: MongoDBConfiguration['collections']) {
         super(configurationOrDB, collections);
 
         if (!this._details) throw new Error('Database initialisation failed?');
