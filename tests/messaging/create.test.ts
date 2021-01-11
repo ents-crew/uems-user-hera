@@ -1,6 +1,12 @@
+import winston from "winston";
+
+winston.add(new winston.transports.Console());
+
 import MongoUnit from 'mongo-unit';
 import { UserDatabase } from "../../src/database/UserDatabase";
 import { Db, MongoClient, ObjectId } from 'mongodb';
+
+jest.setTimeout(20000);
 
 describe('executing create messages create the proper entities', () => {
 
@@ -13,7 +19,9 @@ describe('executing create messages create the proper entities', () => {
         await MongoUnit.start();
 
         // Create the database connection and connect to the one we just created in memory
-        client = new MongoClient(MongoUnit.getUrl());
+        client = new MongoClient(MongoUnit.getUrl(), {
+            useUnifiedTopology: true,
+        });
         await client.connect();
 
         // Then create a user database around this
