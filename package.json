@@ -4,10 +4,11 @@
   "description": "The user management microservice of the UEMS platform",
   "main": "build/index.js",
   "scripts": {
+    "clean": "rm -r build/ || true",
     "build": "tsc --listEmittedFiles",
-    "start": "node build/index.js",
+    "start": "node -r source-map-support/register --trace-warnings build/src/index.js",
     "start:dev": "ts-node --files src/index.ts",
-    "test": "jest"
+    "test": "jest --runInBand"
   },
   "repository": {
     "type": "git",
@@ -27,11 +28,14 @@
     "@types/jest": "^26.0.20",
     "@types/mongodb": "^3.6.3",
     "@types/node": "^14.14.16",
+    "@types/tmp": "^0.2.0",
     "@typescript-eslint/eslint-plugin": "^4.11.1",
     "@typescript-eslint/parser": "^4.11.1",
     "eslint-config-airbnb-typescript": "^12.0.0",
     "eslint-plugin-import": "^2.22.1",
+    "execa": "^5.0.0",
     "jest": "^26.6.3",
+    "tmp": "^0.2.1",
     "ts-jest": "^26.4.4",
     "ts-node": "^9.1.1",
     "typescript": "^4.1.3"
@@ -42,6 +46,7 @@
     "amqplib": "^0.6.0",
     "mongo-unit": "^2.0.1",
     "mongodb": "^3.6.3",
+    "source-map-support": "^0.5.19",
     "winston": "^3.3.3",
     "zod": "^1.11.11"
   }

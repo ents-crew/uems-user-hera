@@ -11,7 +11,7 @@ import CONSTANTS from "./constants/Constants";
 import { LoggedError } from "./error/LoggedError";
 import { MongoClient } from "mongodb";
 
-const CONFIG_FILE_LOCATION = process.env.UEMS_HERA_CONFIG_LOCATION ?? path.join(__dirname, '..', 'config', 'configuration.json');
+const CONFIG_FILE_LOCATION = process.env.UEMS_HERA_CONFIG_LOCATION ?? path.join(__dirname, '..', '..', 'config', 'configuration.json');
 
 const __ = _ml(__filename);
 
