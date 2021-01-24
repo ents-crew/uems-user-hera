@@ -49,13 +49,22 @@ export class UserDatabase extends GenericMongoDatabase<ReadUserMessage, CreateUs
     constructor(configurationOrDB: MongoDBConfiguration | Db, collections?: MongoDBConfiguration['collections']) {
         super(configurationOrDB, collections);
 
-        if (!this._details) throw new Error('Database initialisation failed?');
-        // TODO: find a way to make this actually wait?
-        void this._details.createIndexes([
-            { key: { username: 1 }, name: 'unique-username', unique: true },
-            { key: { email: 1 }, name: 'unique-email', unique: true },
-            { key: { uid: 1 }, name: 'unique-uid', unique: true },
-        ]);
+        const register = (details: Collection) => {
+            void details.createIndexes([
+                { key: { username: 1 }, name: 'unique-username', unique: true },
+                { key: { email: 1 }, name: 'unique-email', unique: true },
+                { key: { uid: 1 }, name: 'unique-uid', unique: true },
+            ]);
+        };
+
+        if (this._details) {
+            register(this._details);
+        } else {
+            this.once('ready', () => {
+                if (!this._details) throw new Error('Details db was not initialised on ready');
+                register(this._details);
+            });
+        }
     }
 
     protected async createImpl(create: UserMessage.CreateUserMessage, details: Collection): Promise<string[]> {
