@@ -2,10 +2,19 @@ import { constants } from "http2";
 import { UserDatabase } from "./database/UserDatabase";
 import { MsgStatus, UserMessage, UserResponse } from "@uems/uemscommlib";
 import { _ml } from "./logging/Log";
-import { RabbitNetworkHandler } from "@uems/micro-builder";
+import { RabbitNetworkHandler, tryApplyTrait } from "@uems/micro-builder/build/src";
 import { ClientFacingError } from "./error/ClientFacingError";
 
 const _b = _ml(__filename, 'binding');
+
+// @ts-ignore
+const requestTracker: ('success' | 'fail')[] & { save: (d: 'success' | 'fail') => void } = [];
+requestTracker.save = function save(d) {
+    if (requestTracker.length >= 50) requestTracker.shift();
+    requestTracker.push(d);
+    tryApplyTrait('successful', requestTracker.filter((e) => e === 'success').length);
+    tryApplyTrait('fail', requestTracker.filter((e) => e === 'fail').length);
+};
 
 async function execute(
     message: UserMessage.UserMessage,
@@ -15,6 +24,7 @@ async function execute(
     if (!database) {
         _b.warn('query was received without a valid database connection');
 
+        requestTracker.save('fail');
         send({
             msg_intention: message.msg_intention,
             msg_id: message.msg_id,
@@ -63,6 +73,7 @@ async function execute(
             status: MsgStatus.FAIL,
             result: [e instanceof ClientFacingError ? e.message : 'failed to create user due to an internal service error'],
         });
+        requestTracker.save('fail');
         return;
     }
 
@@ -83,6 +94,7 @@ async function execute(
             userID: message.userID,
         });
     }
+    requestTracker.save('success');
 }
 
 export default function bind(database: UserDatabase, broker: RabbitNetworkHandler<any, any, any, any, any, any>): void {
@@ -106,6 +118,7 @@ export default function bind(database: UserDatabase, broker: RabbitNetworkHandle
             return database.assert(message);
         }
 
+        requestTracker.save('fail');
         return send({
             msg_intention: message.msg_intention,
             msg_id: message.msg_id,

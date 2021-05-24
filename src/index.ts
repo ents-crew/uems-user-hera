@@ -5,15 +5,29 @@ import { UserDatabase } from "./database/UserDatabase";
 import bind from "./Binding";
 import { ConfigurationSchema } from "./ConfigurationTypes";
 
-import { RabbitNetworkHandler } from '@uems/micro-builder';
-import { UserMessage as UM, UserMessageValidator, UserResponse as UR, UserResponseValidator } from '@uems/uemscommlib';
 import CONSTANTS from "./constants/Constants";
 import { LoggedError } from "./error/LoggedError";
+import { launchCheck, RabbitNetworkHandler, tryApplyTrait } from "@uems/micro-builder/build/src";
+import { has, UserMessage as UM, UserResponse as UR, UserMessageValidator, UserResponseValidator } from '@uems/uemscommlib';
 import { MongoClient } from "mongodb";
 
 const CONFIG_FILE_LOCATION = process.env.UEMS_HERA_CONFIG_LOCATION ?? path.join(__dirname, '..', '..', 'config', 'configuration.json');
 
 const __ = _ml(__filename);
+
+launchCheck(['successful', 'errored', 'rabbitmq', 'database', 'config'], (traits: Record<string, any>) => {
+    if (has(traits, 'rabbitmq') && traits.rabbitmq !== '_undefined' && !traits.rabbitmq) return 'unhealthy';
+    if (has(traits, 'database') && traits.database !== '_undefined' && !traits.database) return 'unhealthy';
+    if (has(traits, 'config') && traits.config !== '_undefined' && !traits.config) return 'unhealthy';
+
+    // If 75% of results fail then we return false
+    if (has(traits, 'successful') && has(traits, 'errored')) {
+        const errorPercentage = traits.errored / (traits.successful + traits.errored);
+        if (errorPercentage > 0.05) return 'unhealthy-serving';
+    }
+
+    return 'healthy';
+});
 
 __.info('starting hera...');
 
@@ -27,6 +41,7 @@ async function launch() {
         if (e.code === 'ENOENT') {
             __.error('failed to launch: ' + CONSTANTS.messages.NO_CONFIG_FILE);
             process.exitCode = CONSTANTS.codes.NO_CONFIG_FILE;
+            tryApplyTrait('config', false);
             throw new LoggedError();
         }
 
@@ -40,6 +55,7 @@ async function launch() {
     } catch (e) {
         __.error('failed to launch: ' + CONSTANTS.messages.INVALID_CONFIG_FILE + ' (invalid JSON)', { e });
         process.exitCode = CONSTANTS.codes.INVALID_CONFIG_FILE;
+        tryApplyTrait('config', false);
         throw new LoggedError();
     }
 
@@ -49,9 +65,11 @@ async function launch() {
             warnings: parsed.error,
         });
         process.exitCode = CONSTANTS.codes.INVALID_CONFIG_FILE;
+        tryApplyTrait('config', false);
         throw new LoggedError();
     }
     let config = parsed.data;
+    tryApplyTrait('config', true);
 
     let database!: UserDatabase;
 
@@ -71,11 +89,13 @@ async function launch() {
 
             const readyUnbind = database.once('ready', () => {
                 readyUnbind();
+                tryApplyTrait('database', true);
                 resolve();
             });
 
             const errorUnbind = database.once('error', (e) => {
                 errorUnbind();
+                tryApplyTrait('database', false);
                 reject(e);
             });
         });
@@ -84,6 +104,7 @@ async function launch() {
     } catch (e) {
         __.error('failed to launch: ' + CONSTANTS.messages.COULD_NOT_CONNECT_TO_DB, { e });
         process.exitCode = CONSTANTS.codes.COULD_NOT_CONNECT_TO_DB;
+        tryApplyTrait('database', false);
         throw new LoggedError();
     }
 
@@ -110,11 +131,13 @@ async function launch() {
         await new Promise<void>((resolve, reject) => {
             const unbindError = messenger.once('error', (err) => {
                 unbindError();
+                tryApplyTrait('rabbitmq', false);
                 reject(err);
             });
 
             const unbindReady = messenger.once('ready', () => {
                 unbindReady();
+                tryApplyTrait('rabbitmq', true);
                 resolve();
             });
         });
@@ -123,6 +146,7 @@ async function launch() {
     } catch (e) {
         __.error('failed to launch: ' + CONSTANTS.messages.COULD_NOT_CONNECT_TO_AMQPLIB, { e });
         process.exitCode = CONSTANTS.codes.COULD_NOT_CONNECT_TO_AMQPLIB;
+        tryApplyTrait('rabbitmq', false);
         throw new LoggedError();
     }
 
