@@ -3,7 +3,7 @@ import CreateUserMessage = UserMessage.CreateUserMessage;
 import UpdateUserMessage = UserMessage.UpdateUserMessage;
 import DeleteUserMessage = UserMessage.DeleteUserMessage;
 import ReadUserMessage = UserMessage.ReadUserMessage;
-import { RabbitNetworkHandler } from "@uems/micro-builder";
+import { RabbitNetworkHandler } from "@uems/micro-builder/build/src";
 
 interface MockBrokerInterface {
     on(name: 'query', callback: (message: ReadUserMessage, send: (data: any) => void) => void): void;
